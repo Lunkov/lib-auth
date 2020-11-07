@@ -29,7 +29,7 @@ func TestAuth(t *testing.T) {
 
   var params = map[string]string{
                             "login": "admin",
-                            "password": "UZB4kik6"}
+                            "password": "password"}
 
   assert.Equal(t, 2, Count())
   assert.Equal(t, true, HasOAuth())
@@ -48,8 +48,10 @@ func TestAuth(t *testing.T) {
 
   ldap1_get = Get(code)
   assert.NotNil(t, ldap1_get)
-  assert.Equal(t, "openldap", (*ldap1_get).Type())
-
+  if ldap1_get != nil {
+    assert.Equal(t, "openldap", (*ldap1_get).Type())
+  }
+  
   auth_all_need := map[string]map[string]string{"test.dig.center":map[string]string{"code":"test.dig.center", "display_name":"test.dig.center", "image":"", "type":"openldap"}}
   auth_all := GetListPwd()
   assert.Equal(t, &auth_all_need, auth_all)

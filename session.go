@@ -149,14 +149,14 @@ func SessionHTTPUserLogin(w http.ResponseWriter, sessionToken string, user *base
       glog.Infof("LOG: SessionHTTPUserLogin: sessionCache.Set: (token=%v) (user=%v) => %v\n", sessionToken, user, sessionCache.DefaultExpiration())
     }
     sessionCache.Set(sessionToken, *user)
-    setToken(w, sessionToken)
+    SetToken(w, sessionToken)
   }
 }
 
 func SessionHTTPUserLogout(w http.ResponseWriter, sessionToken string) {
   if sessionToken != "" {
     sessionCache.Set(sessionToken, base.User{})
-    setToken(w, sessionToken)
+    SetToken(w, sessionToken)
   }
 }
 
@@ -165,7 +165,7 @@ func SessionFind(sessionToken string) bool {
 }
 
 func SessionHTTPCheck(w http.ResponseWriter, r *http.Request) bool {
-  sessionToken := getToken(w, r)
+  sessionToken := GetToken(w, r)
   if sessionToken != "" {
     return sessionCache.Check(sessionToken)
   }
@@ -173,7 +173,7 @@ func SessionHTTPCheck(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func SessionHTTPUserInfo(w http.ResponseWriter, r *http.Request) (*base.User, bool) {
-  return SessionGetUserInfo(getToken(w, r))
+  return SessionGetUserInfo(GetToken(w, r))
 }
 
 func SessionGetUserInfo(sessionToken string) (*base.User, bool) {

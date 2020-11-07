@@ -63,7 +63,7 @@ func New(code string, info base.AuthLoadInfo, filename string, fileBuf []byte) {
       in = &t
       break
     default:
-      glog.Infof("ERR: AUTH: Auth type (%s): '%s'", info.Type(), code, info.DisplayName)
+      glog.Infof("ERR: AUTH: Auth type (%s): code='%s' name='%s'", info.Type(), code, info.DisplayName)
       break
   }
   if in != nil {

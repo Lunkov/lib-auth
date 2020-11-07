@@ -112,7 +112,7 @@ func TestHTTPMemory(t *testing.T) {
 
   //  LOGIN
   rr = httptest.NewRecorder()
-  token := getToken(rr, req)
+  token := GetToken(rr, req)
   
   assert.Equal(t, token_begin, token)
 
@@ -140,7 +140,7 @@ func TestHTTPMemory(t *testing.T) {
 
   rr = httptest.NewRecorder()
 
-  token = getToken(rr, req)
+  token = GetToken(rr, req)
   
   assert.Equal(t, token_begin, token)
 
@@ -197,7 +197,7 @@ func TestHTTPRedis(t *testing.T) {
 
   //  LOGIN
   rr = httptest.NewRecorder()
-  token := getToken(rr, req)
+  token := GetToken(rr, req)
   
   assert.Equal(t, token_begin, token)
 
@@ -222,7 +222,7 @@ func TestHTTPRedis(t *testing.T) {
 
   rr = httptest.NewRecorder()
 
-  token = getToken(rr, req)
+  token = GetToken(rr, req)
   assert.Equal(t, token_begin, token)
   glog.Infof("LOG: SessionHTTPUserLogout: (token = %v)\n", token)
   SessionHTTPUserLogout(rr, token)
