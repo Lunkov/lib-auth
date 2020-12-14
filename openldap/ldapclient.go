@@ -71,9 +71,6 @@ func (a *Info) Login(login string, password string) (base.User, bool) {
   
   // Search for the given username
   str_filter := fmt.Sprintf(a.LDAP.Ldap_filter_user, login)
-  if glog.V(9) {
-    glog.Infof("DBG: LDAP SearchRequest (%s)\n", str_filter)
-  }
   searchRequest := ldap.NewSearchRequest(
       a.LDAP.Ldap_base_dn,
       ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
@@ -83,6 +80,9 @@ func (a *Info) Login(login string, password string) (base.User, bool) {
   )
 
   a.MUA.RLock()
+  if glog.V(9) {
+    glog.Infof("DBG: LDAP SearchRequest (%s)\n", str_filter)
+  }
   sr, err := a.LdapConn.Search(searchRequest)
   a.MUA.RUnlock()
   if err != nil {
@@ -155,6 +155,9 @@ func (a *Info) getGroupsOfUser(username string) ([]string, error) {
     nil,
   )
   a.MUA.RLock()
+  if glog.V(9) {
+    glog.Infof("DBG: LDAP SearchRequest (%s)\n", str_filter)
+  }
   sr, err := a.LdapConn.Search(searchRequest)
   a.MUA.RUnlock()
   if err != nil {
