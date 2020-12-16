@@ -121,6 +121,7 @@ func SetToken(w http.ResponseWriter, sessionToken string) {
   http.SetCookie(w, &http.Cookie{
     Name:    session_token,
     Value:   sessionToken,
+    Path:    "/",
     Expires: time.Now().Add(time.Duration(sessionCache.DefaultExpiration()) * time.Second),
   })
 }
