@@ -14,9 +14,9 @@ import (
 )
 
 func TestCheckEnv(t *testing.T) {
-  SessionInit("memory", 1000, "", 100)
+  SessionInit("map", 1000, "", 100)
   res := SessionMode()
-  assert.Equal(t, "memory", res)
+  assert.Equal(t, "map", res)
   
   SessionClose()
 }
@@ -37,9 +37,9 @@ func TestLoadMem(t *testing.T) {
   
   SessionClose()
   
-  SessionInit("memory", 1000, "", 100)
+  SessionInit("map", 1000, "", 100)
   assert.Equal(t, false, SessionHasError())
-  assert.Equal(t, "memory", SessionMode())
+  assert.Equal(t, "map", SessionMode())
   assert.Equal(t, int64(0), SessionCount())
 
   uid, _ := uuid.Parse("00000002-0003-0004-0005-000000000001")
@@ -77,10 +77,10 @@ func TestLoadRedis(t *testing.T) {
 func TestHTTPMemory(t *testing.T) {
 	flag.Parse()
   
-  SessionInit("memory", 10000, "", 100)
+  SessionInit("map", 10000, "", 100)
   SessionDestroyAll()
   res := SessionMode()
-  assert.Equal(t, "memory", res)
+  assert.Equal(t, "map", res)
   assert.Equal(t, int64(0), SessionCount())
 
   uid, _ := uuid.Parse("00000002-0003-0004-0005-000000000001")

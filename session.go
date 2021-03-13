@@ -6,11 +6,12 @@ import (
   "github.com/golang/glog"
   "github.com/google/uuid"
   
+  "github.com/Lunkov/lib-ref"
   "github.com/Lunkov/lib-cache"
   "github.com/Lunkov/lib-auth/base"
 )
 
-type RedisInfo struct {
+type DBInfo struct {
   Url              string  `yaml:"url"`
   Max_connections  int     `yaml:"max_connections"`
 }
@@ -18,10 +19,12 @@ type RedisInfo struct {
 type SessionInfo struct {
   Mode         string         `yaml:"mode"`
   Expiry_time  int64          `yaml:"expiry_time"`
-  Redis        RedisInfo      `yaml:"redis"`
+  Redis        DBInfo         `yaml:"redis"`
+  Aerospike    DBInfo         `yaml:"aerospike"`
 }
 
-var sessionCache *cache.Cache = nil
+var sessionCache cache.ICache = nil
+var expiryTimeDuration time.Duration
 const session_token string = "__session"
 
 func SessionHasError() bool {
@@ -35,7 +38,7 @@ func SessionMode() string {
   if sessionCache == nil {
     return "undefined"
   }
-  return sessionCache.Mode()
+  return sessionCache.GetMode()
 }
 
 func SessionCount() int64 {
@@ -122,7 +125,7 @@ func SetToken(w http.ResponseWriter, sessionToken string) {
     Name:    session_token,
     Value:   sessionToken,
     Path:    "/",
-    Expires: time.Now().Add(time.Duration(sessionCache.DefaultExpiration()) * time.Second),
+    Expires: time.Now().Add(expiryTimeDuration),
   })
 }
 
@@ -147,7 +150,7 @@ func SessionHTTPUserLogin(w http.ResponseWriter, sessionToken string, user *base
   }
   if sessionToken != "" {
     if glog.V(9) {
-      glog.Infof("LOG: SessionHTTPUserLogin: sessionCache.Set: (token=%v) (user=%v) => %v\n", sessionToken, user, sessionCache.DefaultExpiration())
+      glog.Infof("LOG: SessionHTTPUserLogin: sessionCache.Set: (token=%v) (user=%v) => %v\n", sessionToken, user, expiryTimeDuration)
     }
     sessionCache.Set(sessionToken, *user)
     SetToken(w, sessionToken)
@@ -179,19 +182,19 @@ func SessionHTTPUserInfo(w http.ResponseWriter, r *http.Request) (*base.User, bo
 
 func SessionGetUserInfo(sessionToken string) (*base.User, bool) {
   if glog.V(9) {
-    glog.Infof("DBG: START: SessionGetUserInfo: (token = %v, sessionCache.DefaultExpiration = %v)", sessionToken, sessionCache.DefaultExpiration())
+    glog.Infof("DBG: START: SessionGetUserInfo: (token = %v, sessionCache.DefaultExpiration = %v)", sessionToken, expiryTimeDuration)
   }
   if sessionToken != "" {
     var u, user base.User
     u1, ok := sessionCache.Get(sessionToken, &u)
     if glog.V(9) {
-      glog.Infof("DBG: SessionGetUserInfo: sessionCache.Get: (%v) %v => %v (%s)", sessionToken, ok, u1, sessionCache.GetType(u1))
+      glog.Infof("DBG: SessionGetUserInfo: sessionCache.Get: (%v) %v => %v (%s)", sessionToken, ok, u1, cache.GetType(u1))
     }
     if !ok {
       return nil, false
     }
     ok = false
-    if sessionCache.GetType(u1) == "*User" {
+    if ref.GetType(u1) == "*User" {
       u2, ok := (u1).(*base.User)
       if glog.V(9) {
         glog.Infof("DBG: SessionGetUserInfo: u1.(User): (%v) %v => %v\n", sessionToken, ok, user)
@@ -201,7 +204,7 @@ func SessionGetUserInfo(sessionToken string) (*base.User, bool) {
       }
       user = *u2
     }
-    if sessionCache.GetType(u1) == "User" {
+    if ref.GetType(u1) == "User" {
       u2, ok := (u1).(base.User)
       if !ok {
         if glog.V(9) {
@@ -226,16 +229,17 @@ func SessionGetUserInfo(sessionToken string) (*base.User, bool) {
 ////
 // Init
 ////
-func SessionInit(mode string, expiryTime int64, redisURL string, redisMaxConnections int) bool {
+func SessionInit(mode string, expiryTime int64, URL string, MaxConnections int) bool {
   if glog.V(9) {
     glog.Infof("DBG: SESSION: Init")
   }
-  sessionCache = cache.New(mode, expiryTime, redisURL, redisMaxConnections)
+  sessionCache = cache.New(mode, expiryTime, URL, MaxConnections)
   if sessionCache == nil {
-    glog.Errorf("ERR: SESSION: Init(%s) error\n", mode)
+    glog.Errorf("ERR: SESSION: Init(%s) error", mode)
     return false
   }
-  glog.Infof("LOG: SESSION: Mode is %s\n", sessionCache.Mode())
+  expiryTimeDuration = time.Duration(expiryTime) * time.Second
+  glog.Infof("LOG: SESSION: Mode is %s", sessionCache.GetMode())
   return !sessionCache.HasError()
 }
 
