@@ -188,7 +188,7 @@ func SessionGetUserInfo(sessionToken string) (*base.User, bool) {
     var u, user base.User
     u1, ok := sessionCache.Get(sessionToken, &u)
     if glog.V(9) {
-      glog.Infof("DBG: SessionGetUserInfo: sessionCache.Get: (%v) %v => %v (%s)", sessionToken, ok, u1, cache.GetType(u1))
+      glog.Infof("DBG: SessionGetUserInfo: sessionCache.Get: (%v) %v => %v (%s)", sessionToken, ok, u1, ref.GetType(u1))
     }
     if !ok {
       return nil, false
