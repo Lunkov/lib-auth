@@ -31,21 +31,27 @@ type AuthInterface interface {
   OAuthGetUserData(code string) ([]byte, error)
 }
 
-var memAuth = make(map[string]AuthInterface)
-var hasOAuth = false
+type Auth struct {
+  ai          map[string]AuthInterface
+  hasOAuth    bool
+}
+
+func New() (*Auth) {
+  return &Auth{ai: make(map[string]AuthInterface), hasOAuth: false}
+}
 
 //////////////////////////////////////////////////
 // Array Class Implementation
 ///
-func Count() int {
-  return len(memAuth)
+func (a *Auth) Count() int {
+  return len(a.ai)
 }
 
-func HasOAuth() bool {
-  return hasOAuth
+func (a *Auth) HasOAuth() bool {
+  return a.hasOAuth
 }
 
-func New(code string, info base.AuthLoadInfo, filename string, fileBuf []byte) {
+func (a *Auth) Add(code string, info base.AuthLoadInfo, filename string, fileBuf []byte) {
   var err error
   var ok bool
   var in AuthInterface
@@ -59,8 +65,8 @@ func New(code string, info base.AuthLoadInfo, filename string, fileBuf []byte) {
       if err != nil {
         glog.Fatalf("ERR: OPENLDAP: yamlFile(%s): YAML: %v", filename, err)
       }
-      t := mapAuth[code]
-      in = &t
+      t := a.ai[code]
+      in = t
       break
     default:
       glog.Infof("ERR: AUTH: Auth type (%s): code='%s' name='%s'", info.Type(), code, info.DisplayName)
@@ -69,28 +75,28 @@ func New(code string, info base.AuthLoadInfo, filename string, fileBuf []byte) {
   if in != nil {
     ok = in.Init()
     if ok {
-      memAuth[code] = in
+      a.ai[code] = in
     }
   }
 }
 
-func Get(code string) *AuthInterface {
-  i, ok := memAuth[code]
+func (a *Auth) Get(code string) *AuthInterface {
+  i, ok := a.ai[code]
   if ok {
     return &i
   }
   return nil
 }
 
-func Close() {
-  for _, info := range memAuth {
+func (a *Auth) Close() {
+  for _, info := range a.ai {
     info.Close()
   }
 }
 
-func GetListPwd() *map[string]map[string]string {
+func (a *Auth) GetListPwd() *map[string]map[string]string {
   res := make(map[string]map[string]string)
-  for key, item := range memAuth {
+  for key, item := range a.ai {
     if item.Enabled() && item.Type() == "openldap" {
       res[key] = make(map[string]string)
       res[key]["code"] = key
@@ -102,9 +108,9 @@ func GetListPwd() *map[string]map[string]string {
   return &res
 }
 
-func GetListOAuth() *map[string]map[string]string {
+func (a *Auth) GetListOAuth() *map[string]map[string]string {
   res := make(map[string]map[string]string)
-  for key, item := range memAuth {
+  for key, item := range a.ai {
     if item.Enabled() && item.Type() != "openldap" {
       res[key] = make(map[string]string)
       res[key]["code"] = key
@@ -117,10 +123,10 @@ func GetListOAuth() *map[string]map[string]string {
   return &res
 }
 
-func ToJSONPwd() string {
+func (a *Auth) ToJSONPwd() string {
   cnt := 0
   res := ""
-  for key, item := range memAuth {
+  for key, item := range a.ai {
     if item.Enabled() && item.Type() == "openldap" {
       res += fmt.Sprintf(`{"code": "%s", "type": "%s", "display_name": "%s", "image": "%s"}`, key, item.Type(), item.Name(), item.Img())
       cnt ++
@@ -129,10 +135,10 @@ func ToJSONPwd() string {
   return fmt.Sprintf(`{"count": %d, "data":{ %s }}`, cnt, res)
 }
 
-func ToJSONOAuth() string {
+func (a *Auth) ToJSONOAuth() string {
   cnt := 0
   res := ""
-  for key, item := range memAuth {
+  for key, item := range a.ai {
     if item.Enabled() && item.Type() != "openldap" {
       res += fmt.Sprintf(`{"code": "%s", "type": "%s", "display_name": "%s", "image": "%s"}`, key, item.Type(), item.Name(), item.Img())
       cnt ++
@@ -141,10 +147,10 @@ func ToJSONOAuth() string {
   return fmt.Sprintf(`{"count": %d, "data":{ %s }}`, cnt, res)
 }
 
-func AuthUser(code string, params *map[string]string) (base.User, bool) {
+func (a *Auth) AuthUser(code string, params *map[string]string) (base.User, bool) {
   ok := false
   user := base.User{}
-  mod := Get(code)
+  mod := a.Get(code)
   if mod == nil {
 	  glog.Errorf("ERR: AuthUser(): Code(%s) not found", code)
 	  return user, false
@@ -166,7 +172,7 @@ func AuthUser(code string, params *map[string]string) (base.User, bool) {
   return user, ok
 }
 
-func LoadYAML(filename string, fileBuf []byte) int {
+func (a *Auth) Load(filename string, fileBuf []byte) int {
   var err error
   var mapAuth = make(map[string]base.AuthLoadInfo)
 
@@ -176,8 +182,8 @@ func LoadYAML(filename string, fileBuf []byte) int {
   }
   if(len(mapAuth) > 0) {
     for key, item := range mapAuth {
-      if !item.Disabled {
-        New(key, item, filename, fileBuf)
+      if item.Enabled() {
+        a.Add(key, item, filename, fileBuf)
       }
     }
   }

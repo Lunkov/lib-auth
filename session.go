@@ -23,44 +23,50 @@ type SessionInfo struct {
   Aerospike    DBInfo         `yaml:"aerospike"`
 }
 
-var sessionCache cache.ICache = nil
-var expiryTimeDuration time.Duration
-const session_token string = "__session"
+type Session struct {
+  sessions              cache.ICache
+  expiryTimeDuration    time.Duration
+  tokenName             string
+}
 
-func SessionHasError() bool {
-  if sessionCache == nil {
+func NewSessions() *Session {
+  return &Session{tokenName: "__session"}
+}
+
+func (s *Session) HasError() bool {
+  if s.sessions == nil {
     return true
   }
-  return sessionCache.HasError()
+  return s.sessions.HasError()
 }
 
-func SessionMode() string {
-  if sessionCache == nil {
+func (s *Session) Mode() string {
+  if s.sessions == nil {
     return "undefined"
   }
-  return sessionCache.GetMode()
+  return s.sessions.GetMode()
 }
 
-func SessionCount() int64 {
-  if sessionCache == nil {
+func (s *Session) Count() int64 {
+  if s.sessions == nil {
     return -1
   }
-  return sessionCache.Count()
+  return s.sessions.Count()
 }
 
-func SessionDestroyAll() {
-  if sessionCache != nil {
-    sessionCache.Clear()
+func (s *Session) DestroyAll() {
+  if s.sessions != nil {
+    s.sessions.Clear()
   }
 }
 
-func genToken() string {
+func (s *Session) genToken() string {
   uid, _ := uuid.NewUUID()
   sessionToken := uid.String()
   iter := 0
-  if sessionCache != nil {
+  if s.sessions != nil {
     for iter < 10 {
-      ok := sessionCache.Check(sessionToken)
+      ok := s.sessions.Check(sessionToken)
       if !ok {
         break
       }
@@ -75,120 +81,120 @@ func genToken() string {
   return sessionToken
 }
 
-func SessionHTTPStart(w http.ResponseWriter, r *http.Request) string {
+func (s *Session) HTTPStart(w http.ResponseWriter, r *http.Request) string {
   var sessionToken string
 
   reCreate := true
-  cookie, err := r.Cookie(session_token)
+  cookie, err := r.Cookie(s.tokenName)
   if glog.V(9) {
     glog.Infof("LOG: GET COOKIE: '%v' err=%v\n", cookie, err)
   }
   if err == nil && cookie.Value != "" {
-    if sessionCache != nil {
+    if s.sessions != nil {
       sessionToken = cookie.Value
-      _, ok := sessionCache.Get(cookie.Value, &base.User{})
+      _, ok := s.sessions.Get(cookie.Value, &base.User{})
       if ok {
         reCreate = false
       } else {
-        sessionCache.Remove(cookie.Value)
+        s.sessions.Remove(cookie.Value)
       }
     }
   } else {
     if glog.V(2) {
       glog.Warningf("WRN: TOKEN GET COOKIE(%v): '%v'\n", sessionToken, err)
     }
-    sessionToken = genToken()
-    cookie := http.Cookie{Name: session_token, Value: sessionToken, Path: "/", HttpOnly: true}
+    sessionToken = s.genToken()
+    cookie := http.Cookie{Name: s.tokenName, Value: sessionToken, Path: "/", HttpOnly: true}
     http.SetCookie(w, &cookie)
     if glog.V(9) {
       glog.Infof("LOG: SET COOKIE: '%v' cookie=%v\n", sessionToken, cookie)
     }
   }
 
-  if reCreate && sessionCache != nil {
+  if reCreate && s.sessions != nil {
     if glog.V(9) {
       glog.Infof("LOG: TOKEN SET NEW SESSION: '%v'\n", sessionToken)
     }
-    sessionCache.Set(sessionToken, base.User{TimeLogin: time.Now()})
+    s.sessions.Set(sessionToken, base.User{TimeLogin: time.Now()})
   }
   if glog.V(9) {
-    glog.Infof("LOG: COOKIE: TOKEN: '%v' = '%v'\n", session_token, sessionToken)
+    glog.Infof("LOG: COOKIE: TOKEN: '%v' = '%v'\n", s.tokenName, sessionToken)
   }
   return sessionToken
 }
 
-func SetToken(w http.ResponseWriter, sessionToken string) {
+func (s *Session) SetToken(w http.ResponseWriter, sessionToken string) {
   if glog.V(2) {
-    glog.Infof("LOG: COOKIE: SET TOKEN: '%v' = '%v'\n", session_token, sessionToken)
+    glog.Infof("LOG: COOKIE: SET TOKEN: '%v' = '%v'\n", s.tokenName, sessionToken)
   }
   http.SetCookie(w, &http.Cookie{
-    Name:    session_token,
+    Name:    s.tokenName,
     Value:   sessionToken,
     Path:    "/",
-    Expires: time.Now().Add(expiryTimeDuration),
+    Expires: time.Now().Add(s.expiryTimeDuration),
   })
 }
 
-func GetToken(w http.ResponseWriter, r *http.Request) string {
-  c, err := r.Cookie(session_token)
+func (s *Session) GetToken(w http.ResponseWriter, r *http.Request) string {
+  c, err := r.Cookie(s.tokenName)
   if err != nil {
     if glog.V(2) {
-      glog.Warningf("WRN: COOKIE: GET TOKEN: '%v' = '%v'\n", session_token, err)
+      glog.Warningf("WRN: COOKIE: GET TOKEN: '%v' = '%v'\n", s.tokenName, err)
     }
     return ""
   }
   if glog.V(2) {
-    glog.Infof("LOG: COOKIE: GET TOKEN: '%v' = '%v'\n", session_token, c.Value)
+    glog.Infof("LOG: COOKIE: GET TOKEN: '%v' = '%v'\n", s.tokenName, c.Value)
   }
   return c.Value
 }
 
-func SessionHTTPUserLogin(w http.ResponseWriter, sessionToken string, user *base.User) {
+func (s *Session) HTTPUserLogin(w http.ResponseWriter, sessionToken string, user *base.User) {
   user.TimeLogin = time.Now()
   if sessionToken == "" {
-    sessionToken = genToken()
+    sessionToken = s.genToken()
   }
   if sessionToken != "" {
     if glog.V(9) {
-      glog.Infof("LOG: SessionHTTPUserLogin: sessionCache.Set: (token=%v) (user=%v) => %v\n", sessionToken, user, expiryTimeDuration)
+      glog.Infof("LOG: SessionHTTPUserLogin: s.sessions.Set: (token=%v) (user=%v) => %v\n", sessionToken, user, s.expiryTimeDuration)
     }
-    sessionCache.Set(sessionToken, *user)
-    SetToken(w, sessionToken)
+    s.sessions.Set(sessionToken, *user)
+    s.SetToken(w, sessionToken)
   }
 }
 
-func SessionHTTPUserLogout(w http.ResponseWriter, sessionToken string) {
+func (s *Session) HTTPUserLogout(w http.ResponseWriter, sessionToken string) {
   if sessionToken != "" {
-    sessionCache.Set(sessionToken, base.User{})
-    SetToken(w, sessionToken)
+    s.sessions.Set(sessionToken, base.User{})
+    s.SetToken(w, sessionToken)
   }
 }
 
-func SessionFind(sessionToken string) bool {
-  return sessionCache.Check(sessionToken)
+func (s *Session) Find(sessionToken string) bool {
+  return s.sessions.Check(sessionToken)
 }
 
-func SessionHTTPCheck(w http.ResponseWriter, r *http.Request) bool {
-  sessionToken := GetToken(w, r)
+func (s *Session) HTTPCheck(w http.ResponseWriter, r *http.Request) bool {
+  sessionToken := s.GetToken(w, r)
   if sessionToken != "" {
-    return sessionCache.Check(sessionToken)
+    return s.sessions.Check(sessionToken)
   }
   return false
 }
 
-func SessionHTTPUserInfo(w http.ResponseWriter, r *http.Request) (*base.User, bool) {
-  return SessionGetUserInfo(GetToken(w, r))
+func (s *Session) HTTPUserInfo(w http.ResponseWriter, r *http.Request) (*base.User, bool) {
+  return s.GetUserInfo(s.GetToken(w, r))
 }
 
-func SessionGetUserInfo(sessionToken string) (*base.User, bool) {
+func (s *Session) GetUserInfo(sessionToken string) (*base.User, bool) {
   if glog.V(9) {
-    glog.Infof("DBG: START: SessionGetUserInfo: (token = %v, sessionCache.DefaultExpiration = %v)", sessionToken, expiryTimeDuration)
+    glog.Infof("DBG: START: SessionGetUserInfo: (token = %v, s.sessions.DefaultExpiration = %v)", sessionToken, s.expiryTimeDuration)
   }
   if sessionToken != "" {
     var u, user base.User
-    u1, ok := sessionCache.Get(sessionToken, &u)
+    u1, ok := s.sessions.Get(sessionToken, &u)
     if glog.V(9) {
-      glog.Infof("DBG: SessionGetUserInfo: sessionCache.Get: (%v) %v => %v (%s)", sessionToken, ok, u1, ref.GetType(u1))
+      glog.Infof("DBG: SessionGetUserInfo: s.sessions.Get: (%v) %v => %v (%s)", sessionToken, ok, u1, ref.GetType(u1))
     }
     if !ok {
       return nil, false
@@ -229,23 +235,23 @@ func SessionGetUserInfo(sessionToken string) (*base.User, bool) {
 ////
 // Init
 ////
-func SessionInit(mode string, expiryTime int64, URL string, MaxConnections int) bool {
+func (s *Session) Init(mode string, expiryTime int64, URL string, MaxConnections int) bool {
   if glog.V(9) {
     glog.Infof("DBG: SESSION: Init")
   }
-  sessionCache = cache.New(mode, expiryTime, URL, MaxConnections)
-  if sessionCache == nil {
+  s.sessions = cache.New(mode, expiryTime, URL, MaxConnections)
+  if s.sessions == nil {
     glog.Errorf("ERR: SESSION: Init(%s) error", mode)
     return false
   }
-  expiryTimeDuration = time.Duration(expiryTime) * time.Second
-  glog.Infof("LOG: SESSION: Mode is %s", sessionCache.GetMode())
-  return !sessionCache.HasError()
+  s.expiryTimeDuration = time.Duration(expiryTime) * time.Second
+  glog.Infof("LOG: SESSION: Mode is %s", s.sessions.GetMode())
+  return !s.sessions.HasError()
 }
 
-func SessionClose() {
-  if sessionCache != nil {
-    sessionCache.Close()
-    sessionCache = nil
+func (s *Session) Close() {
+  if s.sessions != nil {
+    s.sessions.Close()
+    s.sessions = nil
   }
 }
