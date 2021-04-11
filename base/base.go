@@ -37,11 +37,11 @@ type AuthConfig struct {
   LDAP                    LDAPInfo  `yaml:"ldap"`
   OAuth                   OAuthInfo `yaml:"oauth"`
 
-  Check_groups            string    `yaml:"check_groups"`
+  CheckGroups             string    `yaml:"check_groups"`
 }
 
 type AuthLoadInfo struct {
-  AuthConfig  `yaml:"authconfig"`
+  AConf   AuthConfig  `yaml:"authconfig"`
 }
 
 //////////////////////////////////////////////////

@@ -9,6 +9,8 @@ import (
   
   "github.com/Lunkov/lib-auth/base"
   "github.com/Lunkov/lib-auth/openldap"
+  "github.com/Lunkov/lib-auth/mailru"
+  "github.com/Lunkov/lib-auth/yandex"
 )
 
 type AuthInterface interface {
@@ -51,33 +53,22 @@ func (a *Auth) HasOAuth() bool {
   return a.hasOAuth
 }
 
-func (a *Auth) Add(code string, info base.AuthLoadInfo, filename string, fileBuf []byte) {
-  var err error
-  var ok bool
-  var in AuthInterface
+func (a *Auth) AddAuth(code string, info base.AuthLoadInfo, filename string) AuthInterface {
   if glog.V(2) {
-    glog.Infof("LOG: AUTH: Append(%s): '%s'", code, info.DisplayName)
+    glog.Infof("LOG: AUTH: Append(%s): '%s'", code, info.AConf.DisplayName)
   }
-  switch info.Type() {
+  switch info.AConf.TypeAuth {
     case "openldap":
-      var mapAuth = make(map[string]openldap.Info)
-      err = yaml.Unmarshal(fileBuf, mapAuth)
-      if err != nil {
-        glog.Fatalf("ERR: OPENLDAP: yamlFile(%s): YAML: %v", filename, err)
-      }
-      t := a.ai[code]
-      in = t
-      break
+      return openldap.New(&info.AConf)
+    case "mail.ru":
+      return mailru.New(&info.AConf)
+    case "yandex.ru":
+      return yandex.New(&info.AConf)
     default:
-      glog.Infof("ERR: AUTH: Auth type (%s): code='%s' name='%s'", info.Type(), code, info.DisplayName)
+      glog.Infof("ERR: AUTH: Auth type (%s): code='%s' name='%s'", info.AConf.TypeAuth, code, info.AConf.DisplayName)
       break
   }
-  if in != nil {
-    ok = in.Init()
-    if ok {
-      a.ai[code] = in
-    }
-  }
+  return nil
 }
 
 func (a *Auth) Get(code string) *AuthInterface {
@@ -182,8 +173,13 @@ func (a *Auth) Load(filename string, fileBuf []byte) int {
   }
   if(len(mapAuth) > 0) {
     for key, item := range mapAuth {
-      if item.Enabled() {
-        a.Add(key, item, filename, fileBuf)
+      if !item.AConf.Disabled {
+        in := a.AddAuth(key, item, filename)
+        if in != nil {
+          if in.Init() {
+            a.ai[key] = in
+          }
+        }
       }
     }
   }

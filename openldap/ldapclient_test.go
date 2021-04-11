@@ -44,7 +44,7 @@ func TestLDAP(t *testing.T) {
   var ldap = Info{   base.AuthConfig{ CODE: "ldap1", TypeAuth: "openldap",
                            LDAP: base.LDAPInfo{ Host: "localhost",
                                 Port: 389,
-                                Ldap_bind_user: "cn=admin,dc=test,dc=dig,dc=center",
+                                Ldap_bind_user: "cn=admin2,dc=test,dc=dig,dc=center",
                                 Ldap_bind_pwd: "password",
                                 Ldap_base_dn: "dc=test,dc=dig,dc=center",
                                 Ldap_filter_user: "(&(objectClass=organizationalPerson)(uid=%s))",

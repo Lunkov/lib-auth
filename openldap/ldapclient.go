@@ -9,6 +9,7 @@ import (
   "github.com/go-ldap/ldap/v3"
   "github.com/google/uuid"
   "github.com/golang/glog"
+  "github.com/jinzhu/copier"
   
   "github.com/Lunkov/lib-auth/base"
 )
@@ -24,6 +25,12 @@ type Info struct {
 
 func (a *Info) Connected() bool {
   return a.LdapConn != nil && a.LdapConnUser != nil
+}
+
+func New(cfg *base.AuthConfig) *Info {
+  a := &Info{}
+  copier.CopyWithOption(a, cfg, copier.Option{IgnoreEmpty: true, DeepCopy: true})
+  return a
 }
 
 func (a *Info) Init() bool {

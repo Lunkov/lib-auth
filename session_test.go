@@ -81,10 +81,10 @@ func TestHTTPMemory(t *testing.T) {
 	flag.Parse()
   
   s := NewSessions()
-  s.Init("map", 10000, "", 100)
+  s.Init("mutexmap", 10000, "", 100)
   s.DestroyAll()
   res := s.Mode()
-  assert.Equal(t, "map", res)
+  assert.Equal(t, "mutexmap", res)
   assert.Equal(t, int64(0), s.Count())
 
   uid, _ := uuid.Parse("00000002-0003-0004-0005-000000000001")
