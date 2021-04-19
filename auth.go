@@ -56,7 +56,7 @@ func (a *Auth) HasOAuth() bool {
 
 func (a *Auth) AddAuth(code string, info base.AuthLoadInfo, filename string) AuthInterface {
   if glog.V(2) {
-    glog.Infof("LOG: AUTH: Append(%s): '%s'", code, info.AConf.DisplayName)
+    glog.Infof("LOG: AUTH: Append(%s:%s): '%s'", code, info.AConf.TypeAuth, info.AConf.DisplayName)
   }
   switch info.AConf.TypeAuth {
     case "openldap":
@@ -181,7 +181,11 @@ func (a *Auth) Load(filename string, fileBuf []byte) int {
         if in != nil {
           if in.Init() {
             a.ai[key] = in
+          } else {
+            glog.Errorf("ERR: AUTH: Can`t init from file (%s): '%s'", filename, key)
           }
+        } else {
+          glog.Errorf("ERR: AUTH: Can`t create from file (%s): '%s'", filename, key)
         }
       }
     }
