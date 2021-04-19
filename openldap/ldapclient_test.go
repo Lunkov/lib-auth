@@ -2,8 +2,8 @@ package openldap
 
 import (
   "testing"
+  "strconv"
   "github.com/stretchr/testify/assert"
-  "sync"
   "flag"
   "github.com/google/uuid"
   "github.com/golang/glog"
@@ -41,20 +41,21 @@ func TestLDAP(t *testing.T) {
 
   var user base.User
   var ok bool
-  var ldap = Info{   base.AuthConfig{ CODE: "ldap1", TypeAuth: "openldap",
+  cfg := base.AuthConfig{ CODE: "ldap1", TypeAuth: "openldap",
                            LDAP: base.LDAPInfo{ Host: "localhost",
                                 Port: 389,
-                                Ldap_bind_user: "cn=admin2,dc=test,dc=dig,dc=center",
+                                Ldap_bind_user: "cn=admin,dc=test,dc=dig,dc=center",
                                 Ldap_bind_pwd: "password",
                                 Ldap_base_dn: "dc=test,dc=dig,dc=center",
-                                Ldap_filter_user: "(&(objectClass=organizationalPerson)(uid=%s))",
-                                Ldap_filter_group: "(memberUid=%s)"}}, nil, nil, sync.RWMutex{}, sync.RWMutex{}}
-
+                                Ldap_filter_user: "(&(objectClass=organizationalPerson)(uid=%s))", 
+                                //Ldap_filter_user: "(&(objectClass=person)(uid=%s))",
+                                //Ldap_filter_user: "(&(objectClass=organizationalPerson)(uid=%s))",
+                                Ldap_filter_group: "(memberUid=%s)"}}
+  ldap := New(&cfg)
   res := ldap.Init()
   assert.Equal(t, true, res)
   assert.Equal(t, true, ldap.Connected())
 
-  glog.Infof("LOG: LDAP LOGGGINNN === %v", ldap)
   user, ok = ldap.Login("admin", "password")
   // assert.Equal(t, true, ok)
 
@@ -64,22 +65,13 @@ func TestLDAP(t *testing.T) {
   // assert.Equal(t, []string{}, user.Groups)
 
   user_id := "17362ff6-e15a-52d2-a3b1-bec4251a9b7d"
-  glog.Infof("LOG: LDAP LOGGGINNN 2222")
   user, ok = ldap.Login("u.user", "123123123")
 
   assert.Equal(t, true, ok)
   assert.Equal(t, user_id, user.ID.String())
   assert.Equal(t, "u.user", user.Login)
   assert.Equal(t, "u.user@test.dig.center", user.EMail)
-  assert.Equal(t, []string{"Users"}, user.Groups)
-
-  user, ok = ldap.Login("u.user", "123123123")
-
-  assert.Equal(t, true, ok)
-  assert.Equal(t, user_id, user.ID.String())
-  assert.Equal(t, "u.user", user.Login)
-  assert.Equal(t, "u.user@test.dig.center", user.EMail)
-  assert.Equal(t, []string{"Users"}, user.Groups)
+  assert.Equal(t, []string{"Users", "NewsMakers"}, user.Groups)
 
   user, ok = ldap.Login("u.user", "123123123")
 
@@ -87,7 +79,15 @@ func TestLDAP(t *testing.T) {
   assert.Equal(t, user_id, user.ID.String())
   assert.Equal(t, "u.user", user.Login)
   assert.Equal(t, "u.user@test.dig.center", user.EMail)
-  assert.Equal(t, []string{"Users"}, user.Groups)
+  assert.Equal(t, []string{"Users", "NewsMakers"}, user.Groups)
+
+  user, ok = ldap.Login("u.user", "123123123")
+
+  assert.Equal(t, true, ok)
+  assert.Equal(t, user_id, user.ID.String())
+  assert.Equal(t, "u.user", user.Login)
+  assert.Equal(t, "u.user@test.dig.center", user.EMail)
+  assert.Equal(t, []string{"Users", "NewsMakers"}, user.Groups)
 
   defer ldap.Close()
 
@@ -98,42 +98,41 @@ func TestLDAP(t *testing.T) {
 // go test -bench=. -benchmem -benchtime=1s -run BenchmarkLDAP ./..
 
 func BenchmarkLDAP(b *testing.B) {
-  flag.Set("alsologtostderr", "true")
-  flag.Set("log_dir", ".")
-  flag.Set("v", "0")
-  flag.Parse()
-
-  glog.Info("Logging configured")
-
+	flag.Set("alsologtostderr", "true")
+	flag.Set("log_dir", ".")
+	flag.Set("v", "0")
+	flag.Parse()
+    
   var user base.User
   var ok bool
-  var ldap = Info{   base.AuthConfig{ CODE: "ldap1", TypeAuth: "openldap",
+  cfg := base.AuthConfig{ CODE: "ldap1", TypeAuth: "openldap",
                            LDAP: base.LDAPInfo{ Host: "localhost",
                                 Port: 389,
                                 Ldap_bind_user: "cn=admin,dc=test,dc=dig,dc=center",
                                 Ldap_bind_pwd: "password",
                                 Ldap_base_dn: "dc=test,dc=dig,dc=center",
                                 Ldap_filter_user: "(&(objectClass=organizationalPerson)(uid=%s))",
-                                Ldap_filter_group: "(memberUid=%s)"}}, nil, nil, sync.RWMutex{}, sync.RWMutex{}}
+                                Ldap_filter_group: "(memberUid=%s)"}}
 
+  ldap := New(&cfg)
   res := ldap.Init()
+  
   assert.Equal(b, true, res)
   assert.Equal(b, true, ldap.Connected())
 
-  glog.Infof("LOG: LDAP LOGGGINNN === %v", ldap)
   b.ResetTimer()
-  for i := 0; i < b.N; i++ {
-    b.StartTimer()
-    user, ok = ldap.Login("u.user", "123123123")
-    b.StopTimer()
-    
-    assert.Equal(b, true, ok)
-    assert.Equal(b, "u.user", user.Login)
-    assert.Equal(b, "u.user@test.dig.center", user.EMail)
-    assert.Equal(b, []string{"Users"}, user.Groups)
+  for i := 1; i <= 8; i *= 2 {
+		b.Run(strconv.Itoa(i), func(b *testing.B) {
+			b.SetParallelism(i)
+      b.RunParallel(func(pb *testing.PB) {
+        for pb.Next() {
+          user, ok = ldap.Login("u.user", "123123123")
+          assert.Equal(b, true, ok)
+          assert.Equal(b, "u.user", user.Login)
+        }
+      })
+    })
   }
-
+ 
   defer ldap.Close()
-
 }
-

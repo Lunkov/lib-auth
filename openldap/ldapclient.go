@@ -45,15 +45,15 @@ func (a *Info) Init() bool {
   // Admin Connect and Bind
   a.LdapConn, err = ldap.Dial("tcp", str_conn)
   if err != nil {
-    glog.Errorf("ERR: LDAP (%s): %s\n", str_conn, err)
+    glog.Errorf("ERR: LDAP (%s): %s", str_conn, err)
     return false
   }
   err = a.LdapConn.Bind(a.LDAP.Ldap_bind_user, a.LDAP.Ldap_bind_pwd)
   if err != nil {
-    glog.Errorf("ERR: LDAP BIND (%s): %s\n", a.LDAP.Ldap_bind_user, err)
+    glog.Errorf("ERR: LDAP BIND (%s): %s", a.LDAP.Ldap_bind_user, err)
     return false
   }
-  glog.Infof("LOG: LDAP %s connected\n", str_conn)
+  glog.Infof("LOG: LDAP %s connected", str_conn)
   return true
 }
 
@@ -72,7 +72,7 @@ func (a *Info) Login(login string, password string) (base.User, bool) {
   user := base.User{}
   if a.LdapConn == nil || a.LdapConnUser == nil {
     str_conn := fmt.Sprintf("%s:%d", a.LDAP.Host, a.LDAP.Port)
-    glog.Errorf("ERR: AUTH: LOGIN: LDAP NOT CONNECTED (%s, admin=%v, user=%v)\n", str_conn, a.LdapConn, a.LdapConnUser)
+    glog.Errorf("ERR: AUTH: LOGIN: LDAP NOT CONNECTED (%s, admin=%v, user=%v)", str_conn, a.LdapConn, a.LdapConnUser)
     return user, false
   }
   
@@ -88,12 +88,12 @@ func (a *Info) Login(login string, password string) (base.User, bool) {
 
   a.MUA.RLock()
   if glog.V(9) {
-    glog.Infof("DBG: LDAP SearchRequest (%s)\n", str_filter)
+    glog.Infof("DBG: LDAP SearchRequest: '%s'", str_filter)
   }
   sr, err := a.LdapConn.Search(searchRequest)
   a.MUA.RUnlock()
   if err != nil {
-    glog.Errorf("ERR: LDAP SEARCH (%s): %s\n", str_filter, err)
+    glog.Errorf("ERR: LDAP SEARCH: '%s': %s", str_filter, err)
     return user, false
   }
 

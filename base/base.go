@@ -34,8 +34,10 @@ type AuthConfig struct {
   Image                   string    `yaml:"image"`
   Disabled                bool      `yaml:"disabled"`
   
-  LDAP                    LDAPInfo  `yaml:"ldap"`
-  OAuth                   OAuthInfo `yaml:"oauth"`
+  LDAP                    LDAPInfo     `yaml:"ldap"`
+  OAuth                   OAuthInfo    `yaml:"oauth"`
+  DBConnect               string       `yaml:"dbconnect"`
+  AuthTable               string       `yaml:"auth_table"`
 
   CheckGroups             string    `yaml:"check_groups"`
 }

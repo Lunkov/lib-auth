@@ -9,6 +9,7 @@ import (
   
   "github.com/Lunkov/lib-auth/base"
   "github.com/Lunkov/lib-auth/openldap"
+  "github.com/Lunkov/lib-auth/pgclient"
   "github.com/Lunkov/lib-auth/mailru"
   "github.com/Lunkov/lib-auth/yandex"
 )
@@ -60,6 +61,8 @@ func (a *Auth) AddAuth(code string, info base.AuthLoadInfo, filename string) Aut
   switch info.AConf.TypeAuth {
     case "openldap":
       return openldap.New(&info.AConf)
+    case "pg":
+      return pgclient.New(&info.AConf)
     case "mail.ru":
       return mailru.New(&info.AConf)
     case "yandex.ru":
