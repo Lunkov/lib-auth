@@ -33,7 +33,7 @@ func TestAuth(t *testing.T) {
                             "login": "admin",
                             "password": "password"}
 
-  assert.Equal(t, 2, a.Count())
+  assert.Equal(t, 3, a.Count())
   assert.Equal(t, true, a.HasOAuth())
 
   tjs_need := "{\"count\": 1, \"data\":{ {\"code\": \"test.dig.center\", \"type\": \"openldap\", \"display_name\": \"test.dig.center\", \"image\": \"\"} }}"

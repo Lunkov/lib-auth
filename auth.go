@@ -3,6 +3,7 @@ package auth
 import (
   "fmt"
   "time"
+  "strings"
   "net/http"
   "gopkg.in/yaml.v2"
   "github.com/golang/glog"
@@ -58,14 +59,16 @@ func (a *Auth) AddAuth(code string, info base.AuthLoadInfo, filename string) Aut
   if glog.V(2) {
     glog.Infof("LOG: AUTH: Append(%s:%s): '%s'", code, info.AConf.TypeAuth, info.AConf.DisplayName)
   }
-  switch info.AConf.TypeAuth {
+  switch strings.ToLower(info.AConf.TypeAuth) {
     case "openldap":
       return openldap.New(&info.AConf)
     case "pg":
       return pgclient.New(&info.AConf)
-    case "mail.ru":
+    case "mailru":
+      a.hasOAuth = true
       return mailru.New(&info.AConf)
-    case "yandex.ru":
+    case "yandex":
+      a.hasOAuth = true
       return yandex.New(&info.AConf)
     default:
       glog.Infof("ERR: AUTH: Auth type (%s): code='%s' name='%s'", info.AConf.TypeAuth, code, info.AConf.DisplayName)
